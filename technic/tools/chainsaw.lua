@@ -156,7 +156,7 @@ end
 -- This function does all the hard work. Recursively we dig the node at hand
 -- if it is in the table and then search the surroundings for more stuff to dig.
 local function recursive_dig(pos, remaining_charge, player)
-    local node=minetest:get_node(pos)
+    local node=minetest.get_node(pos)
     local i=1
     -- Lookup node name in timber table:
     if timber_nodenames[node.name] ~= nil then
@@ -166,47 +166,47 @@ local function recursive_dig(pos, remaining_charge, player)
         end
         local np
         -- wood found - cut it.
-        minetest:dig_node(pos)
+        minetest.dig_node(pos)
 
         remaining_charge=remaining_charge-chainsaw_charge_per_node
         -- check surroundings and run recursively if any charge left
         np={x=pos.x+1, y=pos.y, z=pos.z}
-        if timber_nodenames[minetest:get_node(np).name] ~= nil then
+        if timber_nodenames[minetest.get_node(np).name] ~= nil then
             remaining_charge = recursive_dig(np, remaining_charge)
         end
         np={x=pos.x+1, y=pos.y, z=pos.z+1}
-        if timber_nodenames[minetest:get_node(np).name] ~= nil then
+        if timber_nodenames[minetest.get_node(np).name] ~= nil then
             remaining_charge = recursive_dig(np, remaining_charge)
         end
         np={x=pos.x+1, y=pos.y, z=pos.z-1}
-        if timber_nodenames[minetest:get_node(np).name] ~= nil then
+        if timber_nodenames[minetest.get_node(np).name] ~= nil then
             remaining_charge = recursive_dig(np, remaining_charge)
         end
 
         np={x=pos.x-1, y=pos.y, z=pos.z}
-        if timber_nodenames[minetest:get_node(np).name] ~= nil then
+        if timber_nodenames[minetest.get_node(np).name] ~= nil then
             remaining_charge = recursive_dig(np, remaining_charge)
         end
         np={x=pos.x-1, y=pos.y, z=pos.z+1}
-        if timber_nodenames[minetest:get_node(np).name] ~= nil then
+        if timber_nodenames[minetest.get_node(np).name] ~= nil then
             remaining_charge = recursive_dig(np, remaining_charge)
         end
         np={x=pos.x-1, y=pos.y, z=pos.z-1}
-        if timber_nodenames[minetest:get_node(np).name] ~= nil then
+        if timber_nodenames[minetest.get_node(np).name] ~= nil then
             remaining_charge = recursive_dig(np, remaining_charge)
         end
 
         np={x=pos.x, y=pos.y+1, z=pos.z}
-        if timber_nodenames[minetest:get_node(np).name] ~= nil then
+        if timber_nodenames[minetest.get_node(np).name] ~= nil then
             remaining_charge = recursive_dig(np, remaining_charge)
         end
 
         np={x=pos.x, y=pos.y, z=pos.z+1}
-        if timber_nodenames[minetest:get_node(np).name] ~= nil then
+        if timber_nodenames[minetest.get_node(np).name] ~= nil then
             remaining_charge = recursive_dig(np, remaining_charge)
         end
         np={x=pos.x, y=pos.y, z=pos.z-1}
-        if timber_nodenames[minetest:get_node(np).name] ~= nil then
+        if timber_nodenames[minetest.get_node(np).name] ~= nil then
             remaining_charge = recursive_dig(np, remaining_charge)
         end
         return remaining_charge
@@ -272,11 +272,11 @@ local function chainsaw_dig_it(pos, player,current_charge)
         -- Drop stacks of 99 or less
         p = get_drop_pos()
         while number > 99 do
-            minetest:add_item(p, produced_item .. " 99")
+            minetest.add_item(p, produced_item .. " 99")
             p = get_drop_pos()
             number = number - 99
         end
-        minetest:add_item(p, produced_item .. " " .. number)
+        minetest.add_item(p, produced_item .. " " .. number)
     end
     return remaining_charge
 end
