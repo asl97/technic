@@ -298,10 +298,8 @@ local function chainsaw_dig_it(pos, player,current_charge)
     nodeupdate = function(p, delay) end
 
     -- clear result and start sawing things down
-    local t1 = os.clock()
     local recursive_dig_function = get_recursive_dig_function(pos, remaining_charge, player)
     local output_table = recursive_dig_function()
-    print(string.format("elapsed time: %.2fms", (os.clock() - t1) * 1000))
     minetest.sound_play("chainsaw", {pos = pos, gain = 1.0, max_hear_distance = 10,})
 
     -- Restore the original mechanisms
