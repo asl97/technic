@@ -8,7 +8,8 @@ local timber_nodenames={["default:jungletree"] = true,
                         ["default:papyrus"]    = true,
                         ["default:cactus"]     = true,
                         ["default:tree"]       = true,
-                        ["default:apple"]      = true
+                        ["default:apple"]      = true,
+                        ["woody:tree"] = true
 }
 
 if chainsaw_leaves == true then
@@ -125,29 +126,37 @@ local S = technic.getter
 
 technic.register_power_tool("technic:chainsaw", chainsaw_max_charge)
 
--- Table for saving what was sawed down
-local produced = nil
-
--- Override the default handling routine to be able to count up the
--- items sawed down so that we can drop them i an nice single stack
-local function chainsaw_handle_node_drops(pos, drops, digger)
-    -- Add dropped items to list of collected nodes
-    local get_name_and_number, dropped_item_name, dropped_item, number
-    for _, dropped_item in ipairs(drops) do
-        get_name_and_number = dropped_item:gmatch("%S+")
-        dropped_item_name = get_name_and_number()
-        number = get_name_and_number()
-        if produced[dropped_item_name] == nil then
-            if number then
-                produced[dropped_item_name] = tonumber(number)
-            else
-                produced[dropped_item_name] = 1
+local function chainsaw_nodeupdate(np_list)
+    local np_node, p, n
+    for _, np_node in pairs(np_list) do
+        p = np_node[1]
+        n = np_node[2]
+        if minetest.get_item_group(n.name, "falling_node") ~= 0 then
+            p_bottom = {x=p.x, y=p.y-1, z=p.z}
+            n_bottom = minetest.get_node(p_bottom)
+            -- Note: walkable is in the node definition, not in item groups
+            if minetest.registered_nodes[n_bottom.name] and
+                    (minetest.get_item_group(n.name, "float") == 0 or
+                        minetest.registered_nodes[n_bottom.name].liquidtype == "none") and
+                    (n.name ~= n_bottom.name or (minetest.registered_nodes[n_bottom.name].leveled and
+                        minetest.get_node_level(p_bottom) < minetest.get_node_max_level(p_bottom))) and
+                    (not minetest.registered_nodes[n_bottom.name].walkable or
+                        minetest.registered_nodes[n_bottom.name].buildable_to) then
+                if delay then
+                    minetest.after(0.1, nodeupdate_single, {x=p.x, y=p.y, z=p.z}, false)
+                else
+                    n.level = minetest.get_node_level(p)
+                    minetest.remove_node(p)
+                    spawn_falling_node(p, n)
+                    nodeupdate(p)
+                end
             end
-        else
-            if number then
-                produced[dropped_item_name] = produced[dropped_item_name] + tonumber(number)
-            else
-                produced[dropped_item_name] = produced[dropped_item_name] + 1
+        end
+
+        if minetest.get_item_group(n.name, "attached_node") ~= 0 then
+            if not check_attached_node(p, n) then
+                drop_attached_node(p)
+                nodeupdate(p)
             end
         end
     end
@@ -155,64 +164,94 @@ end
 
 -- This function does all the hard work. Recursively we dig the node at hand
 -- if it is in the table and then search the surroundings for more stuff to dig.
-local function recursive_dig(pos, remaining_charge, player)
+local function get_recursive_dig_function(pos, remaining_charge, player)
     local node=minetest.get_node(pos)
-    local i=1
+    local pos=pos
+    local remaining_charge = remaining_charge
+    local player = player
+    local produced_item = {}
+    local pos_list = {}
+    local itemstack = nil
+    local name = nil
+    local number = nil
     -- Lookup node name in timber table:
-    if timber_nodenames[node.name] ~= nil then
-        -- Return if we are out of power
-        if remaining_charge < chainsaw_charge_per_node then
-            return 0
+    if timber_nodenames[node.name] then
+        node_drops = minetest.get_node_drops(node.name)
+        for _, itemstack in ipairs(node_drops) do
+            get_name_and_number = itemstack:gmatch("%S+")
+            name = get_name_and_number()
+            number = get_name_and_number()
+            if number then
+                produced_item[name] = tonumber(number)
+            else
+                produced_item[name] = 1
+            end
         end
-        local np
-        -- wood found - cut it.
-        minetest.dig_node(pos)
+        return function()
+            local function recursive_dig(pos, remaining_charge)
+                -- Return if we are out of power
+                if remaining_charge < chainsaw_charge_per_node then
+                    return 0
+                end
 
-        remaining_charge=remaining_charge-chainsaw_charge_per_node
-        -- check surroundings and run recursively if any charge left
-        np={x=pos.x+1, y=pos.y, z=pos.z}
-        if timber_nodenames[minetest.get_node(np).name] ~= nil then
-            remaining_charge = recursive_dig(np, remaining_charge)
-        end
-        np={x=pos.x+1, y=pos.y, z=pos.z+1}
-        if timber_nodenames[minetest.get_node(np).name] ~= nil then
-            remaining_charge = recursive_dig(np, remaining_charge)
-        end
-        np={x=pos.x+1, y=pos.y, z=pos.z-1}
-        if timber_nodenames[minetest.get_node(np).name] ~= nil then
-            remaining_charge = recursive_dig(np, remaining_charge)
-        end
+                -- wood found - remove it instead of dig cause dig is slow cause it has lots of callback hooks
+                -- we will handle the drop below inline for more speed
+                minetest.remove_node(pos)
 
-        np={x=pos.x-1, y=pos.y, z=pos.z}
-        if timber_nodenames[minetest.get_node(np).name] ~= nil then
-            remaining_charge = recursive_dig(np, remaining_charge)
-        end
-        np={x=pos.x-1, y=pos.y, z=pos.z+1}
-        if timber_nodenames[minetest.get_node(np).name] ~= nil then
-            remaining_charge = recursive_dig(np, remaining_charge)
-        end
-        np={x=pos.x-1, y=pos.y, z=pos.z-1}
-        if timber_nodenames[minetest.get_node(np).name] ~= nil then
-            remaining_charge = recursive_dig(np, remaining_charge)
-        end
+                remaining_charge=remaining_charge-chainsaw_charge_per_node
+                -- check surroundings and run recursively if any charge left
 
-        np={x=pos.x, y=pos.y+1, z=pos.z}
-        if timber_nodenames[minetest.get_node(np).name] ~= nil then
-            remaining_charge = recursive_dig(np, remaining_charge)
-        end
+                local nplist = {
+                    {x=pos.x+1, y=pos.y, z=pos.z},
+                    {x=pos.x+1, y=pos.y, z=pos.z+1},
+                    {x=pos.x+1, y=pos.y, z=pos.z-1},
+                    {x=pos.x-1, y=pos.y, z=pos.z},
+                    {x=pos.x-1, y=pos.y, z=pos.z+1},
+                    {x=pos.x-1, y=pos.y, z=pos.z-1},
+                    {x=pos.x, y=pos.y, z=pos.z+1},
+                    {x=pos.x, y=pos.y, z=pos.z-1},
+                    {x=pos.x, y=pos.y+1, z=pos.z}
+                }
 
-        np={x=pos.x, y=pos.y, z=pos.z+1}
-        if timber_nodenames[minetest.get_node(np).name] ~= nil then
-            remaining_charge = recursive_dig(np, remaining_charge)
+                for _, np in ipairs(nplist) do
+                    -- only check new pos
+                    if not pos_list[dump(np)] then
+                        local node = minetest.get_node(np)
+                        pos_list[dump(np)] = {np,node}
+                        if timber_nodenames[node.name] then
+                            node_drops = minetest.get_node_drops(node.name)
+                            for _, itemstack in ipairs(node_drops) do
+                                get_name_and_number = itemstack:gmatch("%S+")
+                                name = get_name_and_number()
+                                number = get_name_and_number()
+                                if produced_item[name] then
+                                    if number then
+                                        produced_item[name] = produced_item[name] + tonumber(number)
+                                    else
+                                       produced_item[name] = produced_item[name] + 1
+                                    end
+                                else
+                                    if number then
+                                        produced_item[name] = tonumber(number)
+                                    else
+                                       produced_item[name] = 1
+                                    end
+                                end
+                            end
+                            remaining_charge = recursive_dig(np, remaining_charge)
+                        end
+                    end
+                end
+                return remaining_charge
+            end
+            remaining_charge = recursive_dig(pos, remaining_charge)
+            -- finally run falling code
+            chainsaw_nodeupdate(pos_list)
+            return {["charge"]=remaining_charge,["produced"]=produced_item}
         end
-        np={x=pos.x, y=pos.y, z=pos.z-1}
-        if timber_nodenames[minetest.get_node(np).name] ~= nil then
-            remaining_charge = recursive_dig(np, remaining_charge)
-        end
-        return remaining_charge
     end
     -- Nothing sawed down
-    return remaining_charge
+    return function() return {["charge"]=remaining_charge,["produced"]=produced_item} end
 end
 
 local function get_drop_function(pos)
@@ -249,25 +288,30 @@ local function chainsaw_dig_it(pos, player,current_charge)
     end
     local remaining_charge=current_charge
 
-    -- Save the currently installed dropping mechanism so we can restore it.
-    local original_handle_node_drops = minetest.handle_node_drops
+    -- Save default mechanisms so we can restore it.
+    local original_nodeupdate = nodeupdate
 
-    -- A bit of trickery here: use a different node drop callback
+    -- A bit of trickery here: use a different callback
     -- and restore the original afterwards.
-    minetest.handle_node_drops = chainsaw_handle_node_drops
+
+    -- dummying out falling code, it's very slow
+    -- we will run chainsaw_nodeupdate with lots of duplicates pos remove
+    nodeupdate = function(p, delay) end
 
     -- clear result and start sawing things down
-    produced = {}
-    remaining_charge = recursive_dig(pos, remaining_charge, player)
+    local t1 = os.clock()
+    local recursive_dig_function = get_recursive_dig_function(pos, remaining_charge, player)
+    local output_table = recursive_dig_function()
+    print(string.format("elapsed time: %.2fms", (os.clock() - t1) * 1000))
     minetest.sound_play("chainsaw", {pos = pos, gain = 1.0, max_hear_distance = 10,})
 
-    -- Restore the original noder drop handler
-    minetest.handle_node_drops = original_handle_node_drops
+    -- Restore the original mechanisms
+    nodeupdate = original_nodeupdate
 
     -- Now drop items for the player
     local number, produced_item, p, get_drop_pos
     get_drop_pos = get_drop_function(pos)
-    for produced_item,number in pairs(produced) do
+    for produced_item,number in pairs(output_table["produced"]) do
         --print("ADDING ITEM: " .. produced_item .. " " .. number)
         -- Drop stacks of 99 or less
         p = get_drop_pos()
@@ -278,7 +322,7 @@ local function chainsaw_dig_it(pos, player,current_charge)
         end
         minetest.add_item(p, produced_item .. " " .. number)
     end
-    return remaining_charge
+    return output_table["charge"]
 end
 
 
