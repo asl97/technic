@@ -8,8 +8,7 @@ local timber_nodenames={["default:jungletree"] = true,
                         ["default:papyrus"]    = true,
                         ["default:cactus"]     = true,
                         ["default:tree"]       = true,
-                        ["default:apple"]      = true,
-                        ["woody:tree"] = true
+                        ["default:apple"]      = true
 }
 
 if chainsaw_leaves == true then
