@@ -71,8 +71,10 @@ function technic.register_battery_box(data)
 		"label[3,0;"..S("Charge").."]"..
 		"label[5,0;"..S("Discharge").."]"..
 		"label[1,3;"..S("Power level").."]"..
-		"list[current_player;main;0,5;8,4;]"
-	
+		"list[current_player;main;0,5;8,4;]"..
+		"button[0,4;.8,.8;protected;]"..
+		"label[.8,4; %s]"
+
 	if data.upgrade then
 		formspec = formspec..
 			"list[current_name;upgrade1;3.5,3;1,1;]"..
@@ -135,12 +137,20 @@ function technic.register_battery_box(data)
 			meta:set_float("last_side_shown", charge_count)
 		end
 
+		local protected_label = ''
+		if ( meta:get_int("protected") == 0 ) then
+			protected_label = "Not Protected"
+		else
+			protected_label = "Protected"
+		end
+
 		local charge_percent = math.floor(current_charge / max_charge * 100)
 		meta:set_string("formspec",
-			formspec..
-			"image[1,1;1,2;technic_power_meter_bg.png"
-			.."^[lowpart:"..charge_percent
-			..":technic_power_meter_fg.png]")
+			string.format(formspec..
+					"image[1,1;1,2;technic_power_meter_bg.png"..
+					"^[lowpart:"..charge_percent..
+					":technic_power_meter_fg.png]",
+				protected_label))
 
 		local infotext = S("@1 Battery Box: @2/@3", tier,
 				technic.prettynum(current_charge), technic.prettynum(max_charge))
@@ -180,7 +190,9 @@ function technic.register_battery_box(data)
 				local node = minetest.get_node(pos)
 
 				meta:set_string("infotext", S("%s Battery Box"):format(tier))
-				meta:set_string("formspec", formspec)
+				meta:set_string("raw_formspec", formspec)
+				meta:set_string("formspec", string.format(formspec,"Not Protected"))
+				meta:set_int("protected", 0)
 				meta:set_int(tier.."_EU_demand", 0)
 				meta:set_int(tier.."_EU_supply", 0)
 				meta:set_int(tier.."_EU_input",  0)
@@ -190,6 +202,7 @@ function technic.register_battery_box(data)
 				inv:set_size("upgrade1", 1)
 				inv:set_size("upgrade2", 1)
 			end,
+			on_receive_fields = technic.machine_receive_fields,
 			can_dig = technic.machine_can_dig,
 			allow_metadata_inventory_put = technic.machine_inventory_put,
 			allow_metadata_inventory_take = technic.machine_inventory_take,

@@ -260,6 +260,7 @@ local function mining_drill_mk2_setmode(user,itemstack)
 end
 
 local function mining_drill_mk3_setmode(user,itemstack)
+	local mode
 	local player_name=user:get_player_name()
 	local item=itemstack:to_table()
 	local meta=minetest.deserialize(item["metadata"])

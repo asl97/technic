@@ -32,10 +32,12 @@ function technic.register_generator(data)
 		"label[0,0;"..S("Fuel-Fired %s Generator"):format(tier).."]"..
 		"list[current_name;src;3,1;1,1;]"..
 		"image[4,1;1,1;default_furnace_fire_bg.png]"..
-		"list[current_player;main;0,5;8,4;]"
-	
+		"list[current_player;main;0,5;8,4;]"..
+		"button[3,0;.8,.8;protected;]"..
+		"label[3.8,0; %s]"
+
 	local desc = S("Fuel-Fired %s Generator"):format(tier)
-	
+
 	local run = function(pos, node)
 		local meta = minetest.get_meta(pos)
 		local burn_time = meta:get_int("burn_time")
@@ -100,10 +102,13 @@ function technic.register_generator(data)
 			meta:set_int(data.tier.."_EU_supply", 0)
 			meta:set_int("burn_time", 0)
 			meta:set_int("tube_time",  0)
-			meta:set_string("formspec", generator_formspec)
+			meta:set_int("protected",  0)
+			meta:set_string("raw_formspec", generator_formspec)
+			meta:set_string("formspec", string.format(generator_formspec,"Not Protected"))
 			local inv = meta:get_inventory()
 			inv:set_size("src", 1)
 		end,
+		on_receive_fields = technic.machine_receive_fields,
 		can_dig = technic.machine_can_dig,
 		allow_metadata_inventory_put = technic.machine_inventory_put,
 		allow_metadata_inventory_take = technic.machine_inventory_take,
@@ -131,8 +136,8 @@ function technic.register_generator(data)
 		technic_run = run,
 		technic_on_disable = function(pos, node)
 			local timer = minetest.get_node_timer(pos)
-        		timer:start(1)
-        	end,
+			timer:start(1)
+		end,
 		on_timer = function(pos, node)
 			local meta = minetest.get_meta(pos)
 			

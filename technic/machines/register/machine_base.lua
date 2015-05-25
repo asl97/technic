@@ -39,6 +39,8 @@ function technic.register_base_machine(data)
 
 	local formspec =
 		"invsize[8,9;]"..
+		"button[3,0;.8,.8;protected;]"..
+		"label[3.8,0; %s]"..
 		"list[current_name;src;"..(4-input_size)..",1;"..input_size..",1;]"..
 		"list[current_name;dst;5,1;2,2;]"..
 		"list[current_player;main;0,5;8,4;]"..
@@ -126,7 +128,7 @@ function technic.register_base_machine(data)
 	minetest.register_node("technic:"..ltier.."_"..machine_name, {
 		description = machine_desc:format(tier),
 		tiles = {"technic_"..ltier.."_"..machine_name.."_top.png", 
-	                 "technic_"..ltier.."_"..machine_name.."_bottom.png",
+		         "technic_"..ltier.."_"..machine_name.."_bottom.png",
 		         "technic_"..ltier.."_"..machine_name.."_side.png",
 		         "technic_"..ltier.."_"..machine_name.."_side.png",
 		         "technic_"..ltier.."_"..machine_name.."_side.png",
@@ -141,13 +143,16 @@ function technic.register_base_machine(data)
 			local meta = minetest.get_meta(pos)
 			meta:set_string("infotext", machine_desc:format(tier))
 			meta:set_int("tube_time",  0)
-			meta:set_string("formspec", formspec)
+			meta:set_string("raw_formspec", formspec)
+			meta:set_string("formspec", string.format(formspec,"Not Protected"))
+			meta:set_int("protected",  0)
 			local inv = meta:get_inventory()
 			inv:set_size("src", input_size)
 			inv:set_size("dst", 4)
 			inv:set_size("upgrade1", 1)
 			inv:set_size("upgrade2", 1)
 		end,
+		on_receive_fields = technic.machine_receive_fields,
 		can_dig = technic.machine_can_dig,
 		allow_metadata_inventory_put = technic.machine_inventory_put,
 		allow_metadata_inventory_take = technic.machine_inventory_take,
