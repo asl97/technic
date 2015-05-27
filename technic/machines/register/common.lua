@@ -35,11 +35,8 @@ end
 -- handles the machine upgrades when set or removed
 local function on_machine_upgrade(meta, stack)
 	local stack_name = stack:get_name()
-	if stack_name == "default:chest" then
-		meta:set_int("public", 1)
-		return 1
-	elseif stack_name ~= "technic:control_logic_unit"
-	   and stack_name ~= "technic:battery" then
+	if stack_name ~= "technic:control_logic_unit" and
+			stack_name ~= "technic:battery" then
 		return 0
 	end
 	return 1
@@ -47,15 +44,6 @@ end
 
 -- something is about to be removed
 local function on_machine_downgrade(meta, stack, list)
-	if stack:get_name() == "default:chest" then
-		local inv = meta:get_inventory()
-		local upg1, upg2 = inv:get_stack("upgrade1", 1), inv:get_stack("upgrade2", 1)
-
-		-- only set 0 if theres not a nother chest in the other list too
-		if (not upg1 or not upg2 or upg1:get_name() ~= upg2:get_name()) then
-			meta:set_int("public", 0)
-		end
-	end
 	return 1
 end
 
@@ -176,10 +164,9 @@ end
 local function inv_change(pos, player, count, from_list, to_list, stack)
 	local playername = player:get_player_name()
 	local meta = minetest.get_meta(pos);
-	local public = (meta:get_int("public") == 1)
 	local to_upgrade = to_list == "upgrade1" or to_list == "upgrade2"
 	local from_upgrade = from_list == "upgrade1" or from_list == "upgrade2"
-	if (not public or not meta:get_int("protected") == 1 or to_upgrade or from_upgrade) and minetest.is_protected(pos, playername) then
+	if (meta:get_int("protected") == 1 or to_upgrade or from_upgrade) and minetest.is_protected(pos, playername) then
 		minetest.chat_send_player(playername, S("Inventory move disallowed due to protection"))
 		return 0
 	end
