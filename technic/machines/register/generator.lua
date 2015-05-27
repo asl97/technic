@@ -49,7 +49,7 @@ function technic.register_generator(data)
 		"invsize[8,9;]"..
 		"label[0,0;"..S("Fuel-Fired %s Generator"):format(tier).."]"..
 		"list[current_name;src;3,1;1,1;]"..
-		"image[4,1;1,1;default_furnace_fire_bg.png %s]"..
+		"image[4,1;1,1;default_furnace_fire_bg.png%s]"..
 		"list[current_player;main;0,5;8,4;]"..
 		"button[4,0;.8,.8;protected;]"..
 		"label[4.8,0; %s]"
