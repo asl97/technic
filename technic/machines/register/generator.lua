@@ -14,6 +14,24 @@ local tube = {
 	connect_sides = {left=1, right=1, back=1, top=1, bottom=1},
 }
 
+function generator_receive_fields(pos, formname, fields, sender)
+	if ( fields.protected ) then
+		local meta = minetest.get_meta(pos)
+		local protected = meta:get_int("protected")
+		local formspec = meta:get_string("raw_formspec")
+		local label = nil
+		if ( protected == nil or protected == 0 ) then
+			protected = 1
+			label = "Protected"
+		else
+			protected = 0
+			label = "Not Protected"
+		end	
+		meta:set_string("formspec", string.format(formspec,"",label))
+		meta:set_int("protected",protected)
+	end
+end
+
 function technic.register_generator(data) 
 	local tier = data.tier
 	local ltier = string.lower(tier)
@@ -31,10 +49,10 @@ function technic.register_generator(data)
 		"invsize[8,9;]"..
 		"label[0,0;"..S("Fuel-Fired %s Generator"):format(tier).."]"..
 		"list[current_name;src;3,1;1,1;]"..
-		"image[4,1;1,1;default_furnace_fire_bg.png]"..
+		"image[4,1;1,1;default_furnace_fire_bg.png %s]"..
 		"list[current_player;main;0,5;8,4;]"..
-		"button[3,0;.8,.8;protected;]"..
-		"label[3.8,0; %s]"
+		"button[4,0;.8,.8;protected;]"..
+		"label[4.8,0; %s]"
 
 	local desc = S("Fuel-Fired %s Generator"):format(tier)
 
@@ -76,14 +94,22 @@ function technic.register_generator(data)
 		end
 		if burn_totaltime == 0 then burn_totaltime = 1 end
 		local percent = math.floor((burn_time / burn_totaltime) * 100)
+		local protected = meta:get_int("protected")
+		local formspec = meta:get_string("raw_formspec")
+		local label = nil
+		if ( protected == nil or protected == 0 ) then
+			protected = 1
+			label = "Protected"
+		else
+			protected = 0
+			label = "Not Protected"
+		end	
 		meta:set_string("infotext", desc.." ("..percent.."%)")
-			meta:set_string("formspec", 
-				"size[8, 9]"..
-				"label[0, 0;"..minetest.formspec_escape(desc).."]"..
-				"list[current_name;src;3, 1;1, 1;]"..
-				"image[4, 1;1, 1;default_furnace_fire_bg.png^[lowpart:"..
-				(percent)..":default_furnace_fire_fg.png]"..
-				"list[current_player;main;0, 5;8, 4;]")
+		meta:set_string("formspec", string.format(formspec,
+			"^[lowpart:"..(percent)..":default_furnace_fire_fg.png]",
+			label
+			)
+		)
 	end
 	
 	minetest.register_node("technic:"..ltier.."_generator", {
@@ -104,11 +130,11 @@ function technic.register_generator(data)
 			meta:set_int("tube_time",  0)
 			meta:set_int("protected",  0)
 			meta:set_string("raw_formspec", generator_formspec)
-			meta:set_string("formspec", string.format(generator_formspec,"Not Protected"))
+			meta:set_string("formspec", string.format(generator_formspec,"","Not Protected"))
 			local inv = meta:get_inventory()
 			inv:set_size("src", 1)
 		end,
-		on_receive_fields = technic.machine_receive_fields,
+		on_receive_fields = generator_receive_fields,
 		can_dig = technic.machine_can_dig,
 		allow_metadata_inventory_put = technic.machine_inventory_put,
 		allow_metadata_inventory_take = technic.machine_inventory_take,
@@ -129,6 +155,7 @@ function technic.register_generator(data)
 		sounds = default.node_sound_wood_defaults(),
 		tube = data.tube and tube or nil,
 		drop = "technic:"..ltier.."_generator",
+		on_receive_fields = generator_receive_fields,
 		can_dig = technic.machine_can_dig,
 		allow_metadata_inventory_put = technic.machine_inventory_put,
 		allow_metadata_inventory_take = technic.machine_inventory_take,
@@ -158,13 +185,21 @@ function technic.register_generator(data)
 			burn_time = burn_time - 1
 			meta:set_int("burn_time", burn_time)
 			local percent = math.floor(burn_time / burn_totaltime * 100)
-			meta:set_string("formspec", 
-				"size[8, 9]"..
-				"label[0, 0;"..minetest.formspec_escape(desc).."]"..
-				"list[current_name;src;3, 1;1, 1;]"..
-				"image[4, 1;1, 1;default_furnace_fire_bg.png^[lowpart:"..
-				(percent)..":default_furnace_fire_fg.png]"..
-				"list[current_player;main;0, 5;8, 4;]")
+			local protected = meta:get_int("protected")
+			local formspec = meta:get_string("raw_formspec")
+			local label = nil
+			if ( protected == nil or protected == 0 ) then
+				protected = 1
+				label = "Protected"
+			else
+				protected = 0
+				label = "Not Protected"
+			end	
+			meta:set_string("formspec", string.format(formspec,
+				"^[lowpart:"..(percent)..":default_furnace_fire_fg.png]",
+				label
+				)
+			)
 			return true
 		end,
 	})

@@ -23,7 +23,9 @@ local workshop_formspec =
 	"list[current_name;upgrade1;1,3;1,1;]"..
 	"list[current_name;upgrade2;2,3;1,1;]"..
 	"label[1,4;"..S("Upgrade Slots").."]"..
-	"list[current_player;main;0,5;8,4;]"
+	"list[current_player;main;0,5;8,4;]"..
+	"button[3,0;.8,.8;protected;]"..
+	"label[3.8,0; %s]"
 
 local run = function(pos, node)
 	local meta         = minetest.get_meta(pos)
@@ -82,12 +84,15 @@ minetest.register_node("technic:tool_workshop", {
 	on_construct = function(pos)
 		local meta = minetest.get_meta(pos)
 		meta:set_string("infotext", S("%s Tool Workshop"):format("MV"))
-		meta:set_string("formspec", workshop_formspec)
+		meta:set_string("raw_formspec", workshop_formspec)
+		meta:set_string("formspec", string.format(workshop_formspec,"Not Protected"))
+		meta:set_int("protected", 0)
 		local inv = meta:get_inventory()
 		inv:set_size("src", 1)
 		inv:set_size("upgrade1", 1)
 		inv:set_size("upgrade2", 1)
-	end,	
+	end,
+	on_receive_fields = technic.machine_receive_fields,
 	can_dig = technic.machine_can_dig,
 	allow_metadata_inventory_put = technic.machine_inventory_put,
 	allow_metadata_inventory_take = technic.machine_inventory_take,
