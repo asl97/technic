@@ -179,7 +179,7 @@ local function inv_change(pos, player, count, from_list, to_list, stack)
 	local public = (meta:get_int("public") == 1)
 	local to_upgrade = to_list == "upgrade1" or to_list == "upgrade2"
 	local from_upgrade = from_list == "upgrade1" or from_list == "upgrade2"
-	if (not public or meta:get_int("protected") == 1 or to_upgrade or from_upgrade) and minetest.is_protected(pos, playername) then
+	if (not public or not meta:get_int("protected") == 1 or to_upgrade or from_upgrade) and minetest.is_protected(pos, playername) then
 		minetest.chat_send_player(playername, S("Inventory move disallowed due to protection"))
 		return 0
 	end
@@ -198,20 +198,25 @@ local function inv_change(pos, player, count, from_list, to_list, stack)
 end
 
 function technic.machine_receive_fields(pos, formname, fields, sender)
-	if ( fields.protected ) then
-		local meta = minetest.get_meta(pos)
-		local protected = meta:get_int("protected")
-		local formspec = meta:get_string("raw_formspec")
-		local label = nil
-		if ( protected == nil or protected == 0 ) then
-			protected = 1
-			label = "Protected"
-		else
-			protected = 0
-			label = "Not Protected"
-		end	
-		meta:set_string("formspec", string.format(formspec,label))
-		meta:set_int("protected",protected)
+	playername = sender:get_player_name()
+	if not minetest.is_protected(pos, playername) then
+		if ( fields.protected ) then
+			local meta = minetest.get_meta(pos)
+			local protected = meta:get_int("protected")
+			local formspec = meta:get_string("raw_formspec")
+			local label = nil
+			if ( protected == nil or protected == 0 ) then
+				protected = 1
+				label = "Protected"
+			else
+				protected = 0
+				label = "Not Protected"
+			end	
+			meta:set_string("formspec", string.format(formspec,label))
+			meta:set_int("protected",protected)
+		end
+	else
+		minetest.chat_send_player(playername, S("Protection toggle disallowed due to protection"))
 	end
 end
 

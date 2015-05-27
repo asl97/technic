@@ -176,6 +176,7 @@ function technic.register_base_machine(data)
 		legacy_facedir_simple = true,
 		sounds = default.node_sound_wood_defaults(),
 		tube = data.tube and tube or nil,
+		on_receive_fields = technic.machine_receive_fields,
 		can_dig = technic.machine_can_dig,
 		allow_metadata_inventory_put = technic.machine_inventory_put,
 		allow_metadata_inventory_take = technic.machine_inventory_take,
