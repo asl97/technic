@@ -215,8 +215,6 @@ function technic.machine_receive_fields(pos, formname, fields, sender)
 			meta:set_string("formspec", string.format(formspec,label))
 			meta:set_int("protected",protected)
 		end
-	else
-		minetest.chat_send_player(playername, S("Protection toggle disallowed due to protection"))
 	end
 end
 
