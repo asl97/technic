@@ -101,11 +101,9 @@ function technic.register_generator(data)
 		local formspec = meta:get_string("raw_formspec")
 		local label = nil
 		if ( protected == nil or protected == 0 ) then
-			protected = 1
-			label = "Protected"
-		else
-			protected = 0
 			label = "Not Protected"
+		else
+			label = "Protected"
 		end	
 		meta:set_string("infotext", desc.." ("..percent.."%)")
 		meta:set_string("formspec", string.format(formspec,
@@ -192,11 +190,9 @@ function technic.register_generator(data)
 			local formspec = meta:get_string("raw_formspec")
 			local label = nil
 			if ( protected == nil or protected == 0 ) then
-				protected = 1
-				label = "Protected"
-			else
-				protected = 0
 				label = "Not Protected"
+			else
+				label = "Protected"
 			end	
 			meta:set_string("formspec", string.format(formspec,
 				"^[lowpart:"..(percent)..":default_furnace_fire_fg.png]",
