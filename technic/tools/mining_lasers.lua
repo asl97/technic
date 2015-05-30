@@ -5,6 +5,10 @@ local mining_lasers_list = {
 	{"3", 21, 650000, 3000},
 }
 
+local r_corr = 0.25 -- Remove a bit more nodes (if shooting diagonal) to let it look like a hole (sth like antialiasing)
+local f_1 = 0.5 - r_corr
+local f_2 = 0.5 + r_corr
+
 local S = technic.getter
 
 minetest.register_craft({
@@ -32,121 +36,124 @@ minetest.register_craft({
 	}
 })
 
--- Based on code by Uberi: https://gist.github.com/Uberi/3125280
-local function rayIter(pos, dir, range)
-	local p = vector.round(pos)
-	local x_step,      y_step,      z_step      = 0, 0, 0
-	local x_component, y_component, z_component = 0, 0, 0
-	local x_intersect, y_intersect, z_intersect = 0, 0, 0
-
-	if dir.x == 0 then
-		x_intersect = math.huge
-	elseif dir.x > 0 then
-		x_step = 1
-		x_component = 1 / dir.x
-		x_intersect = x_component
-	else
-		x_step = -1
-		x_component = 1 / -dir.x
-	end
-	if dir.y == 0 then
-		y_intersect = math.huge
-	elseif dir.y > 0 then
-		y_step = 1
-		y_component = 1 / dir.y
-		y_intersect = y_component
-	else
-		y_step = -1
-		y_component = 1 / -dir.y
-	end
-	if dir.z == 0 then
-		z_intersect = math.huge
-	elseif dir.z > 0 then
-		z_step = 1
-		z_component = 1 / dir.z
-		z_intersect = z_component
-	else
-		z_step = -1
-		z_component = 1 / -dir.z
-	end
-
-	return function()
-		if x_intersect < y_intersect then
-			if x_intersect < z_intersect then
-				p.x = p.x + x_step
-				x_intersect = x_intersect + x_component
-			else
-				p.z = p.z + z_step
-				z_intersect = z_intersect + z_component
-			end
-		elseif y_intersect < z_intersect then
-			p.y = p.y + y_step
-			y_intersect = y_intersect + y_component
-		else
-			p.z = p.z + z_step
-			z_intersect = z_intersect + z_component
+local function get_used_dir(dir)
+	local abs_dir = {x = math.abs(dir.x),
+			y = math.abs(dir.y),
+			z = math.abs(dir.z)}
+	local dir_max = math.max(abs_dir.x, abs_dir.y, abs_dir.z)
+	if dir_max == abs_dir.x then
+		local tab = {"x", {x = 1, y = dir.y / dir.x, z = dir.z / dir.x}}
+		if dir.x >= 0 then
+			tab[3] = "+"
 		end
-		if vector.distance(pos, p) > range then
-			return nil
-		end
-		return p
+		return tab
 	end
+	if dir_max == abs_dir.y then
+		local tab = {"y", {x = dir.x / dir.y, y = 1, z = dir.z / dir.y}}
+		if dir.y >= 0 then
+			tab[3] = "+"
+		end
+		return tab
+	end
+	local tab = {"z", {x = dir.x / dir.z, y = dir.y / dir.z, z = 1}}
+	if dir.z >= 0 then
+		tab[3] = "+"
+	end
+	return tab
 end
 
-local function laser_node(pos, node, player)
-	local def = minetest.registered_nodes[node.name]
-	if def and def.liquidtype ~= "none" then
-		minetest.remove_node(pos)
-		minetest.add_particle({
-			pos = pos,
-			vel = {x=0, y=2, z=0},
-			acc = {x=0, y=-1, z=0},
-			expirationtime = 1.5,
-			size = 6 + math.random() * 2,
-			texture = "smoke_puff.png^[transform" .. math.random(0, 7),
-		})
+local function node_tab(z, d)
+	local n1 = math.floor(z * d + f_1)
+	local n2 = math.floor(z * d + f_2)
+	if n1 == n2 then
+		return {n1}
+	end
+	return {n1, n2}
+end
+
+local function laser_node(pos, player)
+	if node.name == "air" or node.name == "ignore"
+	or node.name == "default:lava_source" or node.name == "default:lava_flowing" then
 		return
 	end
-	minetest.node_dig(pos, node, player)
+	local node = minetest.get_node(pos)
+	if minetest.is_protected(pos, player:get_player_name()) then
+		minetest.record_protection_violation(pos, player:get_player_name())
+		return
+	end
+	if node.name == "default:water_source" or node.name == "default:water_flowing" then
+		minetest.remove_node(pos)
+		minetest.add_particle(pos,
+				{x=0, y=2, z=0},
+				{x=0, y=-1, z=0},
+				1.5,
+				8,
+				false,
+				"smoke_puff.png")
+		return
+	end
+	if player then
+		minetest.node_dig(pos, node, player)
+	end
 end
 
-local no_destroy = {
-	["air"] = true,
-	["default:lava_source"] = true,
-	["default:lava_flowing"] = true,
-}
-local function laser_shoot(player, range, particle_texture, sound)
-	local player_pos = player:getpos()
-	local player_name = player:get_player_name()
-	local dir = player:get_look_dir()
-
-	local start_pos = vector.new(player_pos)
-	-- Adjust to head height
-	start_pos.y = start_pos.y + 1.9
-	minetest.add_particle({
-		pos = startpos,
-		vel = dir,
-		acc = vector.multiply(dir, 50),
-		expirationtime = range / 11,
-		size = 1,
-		texture = particle_texture .. "^[transform" .. math.random(0, 7),
-	})
-	minetest.sound_play(sound, {pos = player_pos, max_hear_distance = range})
-	for pos in rayIter(start_pos, dir, range) do
-		if minetest.is_protected(pos, player_name) then
-			minetest.record_protection_violation(pos, player_name)
-			break
+local function laser_nodes(pos, dir, player, range)
+	local t_dir = get_used_dir(dir)
+	local dir_typ = t_dir[1]
+	if t_dir[3] == "+" then
+		f_tab = {0, range}
+	else
+		f_tab = {-range,0}
+	end
+	local d_ch = t_dir[2]
+	if dir_typ == "x" then
+		for d = f_tab[1],f_tab[2],1 do
+			local x = d
+			local ytab = node_tab(d_ch.y, d)
+			local ztab = node_tab(d_ch.z, d)
+			for _, y in pairs(ytab) do
+				for _, z in pairs(ztab) do
+					laser_node({x = pos.x + x, y = pos.y + y, z = pos.z + z}, player)
+				end
+			end
 		end
-		local node = minetest.get_node_or_nil(pos)
-		if not node then
-			break
+		return
+	end
+	if dir_typ == "y" then
+		for d = f_tab[1], f_tab[2] do
+			local xtab = node_tab(d_ch.x, d)
+			local y = d
+			local ztab = node_tab(d_ch.z, d)
+			for _, x in pairs(xtab) do
+				for _, z in pairs(ztab) do
+					laser_node({x = pos.x + x, y = pos.y + y, z = pos.z + z}, player)
+				end
+			end
 		end
-		if not no_destroy[node.name] then
-			laser_node(pos, node, player)
+		return
+	end
+	for d = f_tab[1], f_tab[2] do
+		local xtab = node_tab(d_ch.x, d)
+		local ytab = node_tab(d_ch.y, d)
+		local z = d
+		for _, x in pairs(xtab) do
+			for _, y in pairs(ytab) do
+				laser_node({x = pos.x + x, y = pos.y + y, z = pos.z + z}, player)
+			end
 		end
 	end
 end
 
+local function laser_shoot(player, range, particle_texture, sound)
+	local playerpos = player:getpos()
+	local dir = player:get_look_dir()
+
+	local startpos = {x = playerpos.x, y = playerpos.y + 1.6, z = playerpos.z}
+	local mult_dir = vector.multiply(dir, 50)
+	minetest.add_particle(startpos, dir, mult_dir, range / 11, 1, false, particle_texture)
+	laser_nodes(vector.round(startpos), dir, player, range)
+	minetest.sound_play(sound, {pos = playerpos, gain = 1.0, max_hear_distance = range})
+end
 
 for _, m in pairs(mining_lasers_list) do
 	technic.register_power_tool("technic:laser_mk"..m[1], m[3])
